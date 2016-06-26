@@ -52,7 +52,6 @@ public class MainActivity extends AppCompatActivity {
     Button mUploadButton;
     CircularProgressBar mCircularLoadingBar;
     TextView mMainTextField;
-    private MediaPlayer mPlayer;
 
     private final String twoHyphens = "--";
     private final String lineEnd = "\r\n";
@@ -73,10 +72,11 @@ public class MainActivity extends AppCompatActivity {
         mCircularLoadingBar = (CircularProgressBar) findViewById(R.id.loading_circle_bar);
         mMainTextField = (TextView) findViewById(R.id.main_text_field);
 
-        mUploadButton = (Button) findViewById(R.id.report_symptoms_button);
+        mUploadButton = (Button) findViewById(R.id.upload_song_button);
         mUploadButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                mUploadButton.setEnabled(false);
                 Intent intent = new Intent();
                 intent.setAction(Intent.ACTION_GET_CONTENT);
                 intent.setType("*/*");
@@ -148,8 +148,6 @@ public class MainActivity extends AppCompatActivity {
             if (networkInfo != null && networkInfo.isConnected())
             {
                 // fetch data
-
-
                 final MultipartRequest songUploadRequest = new MultipartRequest(
                     Constants.SERVER_URL + Constants.GLOBAL_ROUTE + Constants.UPLOAD_API_ENDPOINT,
                     null,
@@ -165,11 +163,7 @@ public class MainActivity extends AppCompatActivity {
                             SongUploadResponse responseCode = gson.fromJson (response.toString(), SongUploadResponse.class);
 
                             if (responseCode.status_code == 200){
-                                mCircularLoadingBar.setVisibility(View.INVISIBLE);
-                                mMainTextField.setText("Karaoke file and lyrics created!");
-
-                                getKaraokeFile(responseCode.name, responseCode.identifier);
-
+                                getKaraokeFile(responseCode.name, responseCode.identifier, responseCode.lyrics);
 
                             }
                         }
@@ -223,7 +217,7 @@ public class MainActivity extends AppCompatActivity {
         dataOutputStream.writeBytes(lineEnd);
     }
 
-    private void getKaraokeFile (final String fileName, final String identifier)
+    private void getKaraokeFile (final String fileName, final String identifier, final String lyrics)
     {
         SongRetrievalRequest request = new SongRetrievalRequest(
                 Constants.SERVER_URL + Constants.MEDIA_API_ENDPOINT + identifier,
@@ -260,11 +254,16 @@ public class MainActivity extends AppCompatActivity {
                                 File[] files = getApplicationContext().getExternalFilesDir(null).listFiles();
                                 for (File file : files) {
                                     String karaokeFileName =  file.getName();
-                                    Log.i(TAG, karaokeFileName + "    " + identifier);
+                                    //Log.i(TAG, karaokeFileName + "    " + identifier);
                                     if (karaokeFileName.equals(identifier)){
-                                        Log.i (TAG, "Playing song");
-                                        mPlayer = MediaPlayer.create(getApplicationContext(), Uri.parse(file.getAbsolutePath()));
-                                        mPlayer.start();
+                                        mCircularLoadingBar.setVisibility(View.INVISIBLE);
+                                        Log.i (TAG, "switching to playing activity");
+                                        Intent i = new Intent(getApplicationContext(), PlayActivity.class);
+                                        i.putExtra("SONG_FILE_NAME", fileName);
+                                        i.putExtra("SONG_ACTUAL_FILE_NAME", identifier);
+                                        i.putExtra("SONG_FULL_PATH", file.getAbsolutePath());
+                                        i.putExtra("SONG_LYRICS", lyrics);
+                                        startActivity (i);
                                     }
                                 }
 
@@ -278,13 +277,13 @@ public class MainActivity extends AppCompatActivity {
                             e.printStackTrace();
                         }
                     }
-                } ,new Response.ErrorListener() {
-
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                // TODO handle the error
-                error.printStackTrace();
-            }
+                },
+                new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    // TODO handle the error
+                    error.printStackTrace();
+                }
         });
         RequestQueue mRequestQueue = Volley.newRequestQueue(getApplicationContext(), new HurlStack());
         mRequestQueue.add(request);

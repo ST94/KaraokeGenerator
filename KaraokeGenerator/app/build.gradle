@@ -28,5 +28,6 @@ dependencies {
     compile "commons-io:commons-io:+"
     compile 'com.github.castorflex.smoothprogressbar:library-circular:1.2.0'
     compile 'com.google.code.gson:gson:2.6.2'
+    compile 'com.github.recruit-lifestyle:PlayPauseButton:1.0'
 
 }

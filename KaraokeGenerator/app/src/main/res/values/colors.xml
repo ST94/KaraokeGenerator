@@ -7,6 +7,7 @@
     <color name ="background">#FFF</color>
     <color name ="main_color">#3F51B5</color>
     <color name ="secondary_color">#303F9F</color>
+    <color name ="black">#000</color>
 
     <color name="gplus_color_1">#3e802f</color>
     <color name="gplus_color_2">#f4b400</color>
