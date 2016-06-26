@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="colors">
-        <item>Big Buck Bunny</item>
-        <item>Elephants Dream</item>
-        <item>Sintel</item>
-        <item>Tears of Steel</item>
-    </string-array>
+    <integer-array name="mycolors">
+        <item>@color/gplus_color_1</item>
+        <item>@color/gplus_color_2</item>
+        <item>@color/gplus_color_3</item>
+        <item>@color/gplus_color_4</item>
+    </integer-array>
 </resources>

@@ -3,6 +3,9 @@ package st94.gmail.com.karaokegenerator.network;
 /**
  * Created by Shing on 2016-06-25.
  */
+import android.nfc.Tag;
+import android.util.Log;
+
 import com.android.volley.AuthFailureError;
 import com.android.volley.NetworkResponse;
 import com.android.volley.ParseError;
@@ -11,16 +14,22 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.HttpHeaderParser;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
-public class MultipartRequest extends Request<NetworkResponse> {
-    private final Response.Listener<NetworkResponse> mListener;
+public class MultipartRequest extends Request<JSONObject> {
+    private final Response.Listener<JSONObject> mListener;
     private final Response.ErrorListener mErrorListener;
     private final Map<String, String> mHeaders;
     private final String mMimeType;
     private final byte[] mMultipartBody;
+    private final String TAG = "MultiPartRequest";
+    public int mStatusCode = 0;
 
-    public MultipartRequest(String url, Map<String, String> headers, String mimeType, byte[] multipartBody, Response.Listener<NetworkResponse> listener, Response.ErrorListener errorListener) {
+    public MultipartRequest(String url, Map<String, String> headers, String mimeType, byte[] multipartBody, Response.Listener<JSONObject> listener, Response.ErrorListener errorListener) {
         super(Method.POST, url, errorListener);
         this.mListener = listener;
         this.mErrorListener = errorListener;
@@ -34,6 +43,21 @@ public class MultipartRequest extends Request<NetworkResponse> {
         return (mHeaders != null) ? mHeaders : super.getHeaders();
     }
 
+    // Same as JsonObjectRequest#parseNetworkResponse
+    @Override
+    protected Response parseNetworkResponse(NetworkResponse response) {
+        try {
+            String jsonString = new String(response.data, HttpHeaderParser.parseCharset(response.headers));
+            //Log.i (TAG, "INSIDE REQUEST " + jsonString);
+            mStatusCode = response.statusCode;
+            return Response.success(new JSONObject(jsonString),HttpHeaderParser.parseCacheHeaders(response));
+        } catch (UnsupportedEncodingException e) {
+            return Response.error(new ParseError(e));
+        } catch (JSONException je) {
+            return Response.error(new ParseError(je));
+        }
+    }
+
     @Override
     public String getBodyContentType() {
         return mMimeType;
@@ -44,19 +68,9 @@ public class MultipartRequest extends Request<NetworkResponse> {
         return mMultipartBody;
     }
 
-    @Override
-    protected Response<NetworkResponse> parseNetworkResponse(NetworkResponse response) {
-        try {
-            return Response.success(
-                    response,
-                    HttpHeaderParser.parseCacheHeaders(response));
-        } catch (Exception e) {
-            return Response.error(new ParseError(e));
-        }
-    }
 
     @Override
-    protected void deliverResponse(NetworkResponse response) {
+    protected void deliverResponse(JSONObject response) {
         mListener.onResponse(response);
     }
 

@@ -2,13 +2,11 @@ package st94.gmail.com.karaokegenerator;
 
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
+import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.DocumentsContract;
-import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.ArrayMap;
@@ -17,23 +15,34 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.NetworkResponse;
+import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.Volley;
+import com.google.gson.Gson;
+
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URI;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Map;
 
+import fr.castorflex.android.circularprogressbar.CircularProgressBar;
+import st94.gmail.com.karaokegenerator.Models.SongUploadResponse;
 import st94.gmail.com.karaokegenerator.network.*;
 
 public class MainActivity extends AppCompatActivity {
@@ -41,12 +50,16 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG ="MainActivity";
     private static final int ACTIVITY_RESULT_ID = 1;
     Button mUploadButton;
+    CircularProgressBar mCircularLoadingBar;
+    TextView mMainTextField;
+    private MediaPlayer mPlayer;
 
     private final String twoHyphens = "--";
     private final String lineEnd = "\r\n";
     private final String boundary = "apiclient-" + System.currentTimeMillis();
     private final String mimeType = "multipart/form-data;boundary=" + boundary;
     private byte[] multipartBody;
+    private boolean mSuccess = false;
 
 
     @Override
@@ -57,6 +70,9 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
 
+        mCircularLoadingBar = (CircularProgressBar) findViewById(R.id.loading_circle_bar);
+        mMainTextField = (TextView) findViewById(R.id.main_text_field);
+
         mUploadButton = (Button) findViewById(R.id.report_symptoms_button);
         mUploadButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -64,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent();
                 intent.setAction(Intent.ACTION_GET_CONTENT);
                 intent.setType("*/*");
-                String[] mimeTypes = {"audio/mpeg"};
+                String[] mimeTypes = {"audio/mpeg", "audio/ogg"};
                 intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
                 startActivityForResult(intent, ACTIVITY_RESULT_ID);
             }
@@ -132,35 +148,45 @@ public class MainActivity extends AppCompatActivity {
             if (networkInfo != null && networkInfo.isConnected())
             {
                 // fetch data
-                MultipartRequest songUploadRequest = new MultipartRequest(
+
+
+                final MultipartRequest songUploadRequest = new MultipartRequest(
                     Constants.SERVER_URL + Constants.GLOBAL_ROUTE + Constants.UPLOAD_API_ENDPOINT,
                     null,
                     mimeType,
                     multipartBody,
-                    new Response.Listener<NetworkResponse>()
+                    new Response.Listener<JSONObject>()
                     {
                         @Override
-                        public void onResponse(NetworkResponse response) {
+                        public void onResponse(JSONObject response) {
                             Log.i(TAG, "Got a response from the server");
+                            //Log.i (TAG, "INSIDE MAIN" + response.toString());
+                            Gson gson = new Gson();
+                            SongUploadResponse responseCode = gson.fromJson (response.toString(), SongUploadResponse.class);
 
-                            if (response.statusCode == 200){
-                                //get the processed song back
+                            if (responseCode.status_code == 200){
+                                mCircularLoadingBar.setVisibility(View.INVISIBLE);
+                                mMainTextField.setText("Karaoke file and lyrics created!");
+
+                                getKaraokeFile(responseCode.name, responseCode.identifier);
+
+
                             }
                         }
                     },
                     new Response.ErrorListener() {
                         @Override
                         public void onErrorResponse(VolleyError error) {
-                            Log.e(TAG, "Post request to send gcm token to server failed", error);
+                            Log.e(TAG, "Post request to upload song failed", error);
                         }
                     });
                 songUploadRequest.setRetryPolicy(new DefaultRetryPolicy(
                         75000,
                         DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
                         DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
-
                 mQueue.add(songUploadRequest);
+                mMainTextField.setText("Generating your karaoke file!");
+                mCircularLoadingBar.setVisibility(View.VISIBLE);
             } else {
                 Log.e(TAG, "Failed to connect to server to send gcm token");
                 // display error
@@ -174,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
         dataOutputStream.writeBytes(twoHyphens + boundary + lineEnd);
         dataOutputStream.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\""
                 + fileName + "\"" + lineEnd);
-        dataOutputStream.writeBytes("Content-Type: audio/mp3" + lineEnd);
+        dataOutputStream.writeBytes("Content-Type: audio/ogg" + lineEnd);
         dataOutputStream.writeBytes(lineEnd);
 
         ByteArrayInputStream fileInputStream = new ByteArrayInputStream(fileData);
@@ -195,6 +221,73 @@ public class MainActivity extends AppCompatActivity {
         }
 
         dataOutputStream.writeBytes(lineEnd);
+    }
+
+    private void getKaraokeFile (final String fileName, final String identifier)
+    {
+        SongRetrievalRequest request = new SongRetrievalRequest(
+                Constants.SERVER_URL + Constants.MEDIA_API_ENDPOINT + identifier,
+                null,
+                new Response.Listener<byte[]>() {
+                    @Override
+                    public void onResponse(byte[] response) {
+                        try {
+                            if (response != null) {
+                                Log.i(TAG,"Writing karaoke file");
+                                FileOutputStream outputStream;
+
+
+                                String name = identifier;
+                                File newSongFile = new File(getApplicationContext().getExternalFilesDir(null), identifier);
+
+                                try {
+                                    // Very simple code to copy a picture from the application's
+                                    // resource into the external file.  Note that this code does
+                                    // no error checking, and assumes the picture is small (does not
+                                    // try to copy it in chunks).  Note that if external storage is
+                                    // not currently mounted this will silently fail.
+
+                                    OutputStream os = new FileOutputStream(newSongFile);
+                                    os.write(response);
+                                    os.close();
+                                } catch (IOException e) {
+                                    // Unable to create file, likely because external storage is
+                                    // not currently mounted.
+                                    Log.w("ExternalStorage", "Error writing " + newSongFile, e);
+                                }
+
+                                Log.i (TAG, "Wrote song file to " + identifier);
+                                File[] files = getApplicationContext().getExternalFilesDir(null).listFiles();
+                                for (File file : files) {
+                                    String karaokeFileName =  file.getName();
+                                    Log.i(TAG, karaokeFileName + "    " + identifier);
+                                    if (karaokeFileName.equals(identifier)){
+                                        Log.i (TAG, "Playing song");
+                                        mPlayer = MediaPlayer.create(getApplicationContext(), Uri.parse(file.getAbsolutePath()));
+                                        mPlayer.start();
+                                    }
+                                }
+
+                            }
+                            else {
+                                Log.i(TAG, "Failed to receive response");
+                            }
+                        } catch (Exception e) {
+                            // TODO Auto-generated catch block
+                            Log.d("KEY_ERROR", "UNABLE TO DOWNLOAD FILE");
+                            e.printStackTrace();
+                        }
+                    }
+                } ,new Response.ErrorListener() {
+
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                // TODO handle the error
+                error.printStackTrace();
+            }
+        });
+        RequestQueue mRequestQueue = Volley.newRequestQueue(getApplicationContext(), new HurlStack());
+        mRequestQueue.add(request);
     }
 
 }
