@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="colors">
+        <item>Big Buck Bunny</item>
+        <item>Elephants Dream</item>
+        <item>Sintel</item>
+        <item>Tears of Steel</item>
+    </string-array>
+</resources>
