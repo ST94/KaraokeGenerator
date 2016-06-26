@@ -1,0 +1,50 @@
+.legend {
+    z-index: 10000;
+    top: 400px;
+    left: 200px;
+    position: absolute;
+}
+
+.btn {
+    text-align: left;
+}
+
+label.btn.btn-default.btn-file {
+    position: absolute;
+    top: 40%;
+    left: 40%;
+    width: 20%;
+    height: 20%;
+    text-align: center;
+    font-size: 40px;
+}
+
+.lyrics {
+    position: absolute;
+    left: 47%;
+    top: 80%;
+    font-size: 20px;
+    display: none;
+}
+
+.lyrics-text {
+    position: absolute;
+    left: 35%;
+    top: 90%;
+    font-size: 20px;
+}
+
+.output {
+    position: absolute;
+    left: 47%;
+    top: 60%;
+    font-size: 20px;
+    display: none;
+}
+
+.output-text {
+    position: absolute;
+    left: 35%;
+    top: 70%;
+    font-size: 20px;
+}
