@@ -22,3 +22,5 @@ We learnt how to do signal processing in python, and how access Google's speech 
 - Improved signal processing algorithm for vocal removing and speech recognition 
 - Lyric time-stamps
 - Improved UI
+
+See http://devpost.com/software/karaokegenerator for more details
