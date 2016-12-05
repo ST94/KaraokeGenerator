@@ -1,4 +1,4 @@
-# KaraokeGenerator
+# KaraokeGenerator - Enghack Spring 2016
 
 ## Inspiration
 Tracking down instrumental version of songs to use for karaoke can be extremely difficult and frustrating. For some rare songs, it can also be difficult to find accurate lyrics for them, forcing you to to either transcribe the audio manually, or give up. By providing a service that automatically generates an instrumental song file and its corresponding lyrics for you, it is no longer necessary to waste your time searching.
